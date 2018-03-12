@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>EthWallet</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/materialize/0.100.2/css/materialize.min.css">
+    <script src="node_modules/web3/dist/web3.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <div class="row">
+            <div class="col s6"><h1>EthWallet</h1></div>
+            <div class="col s6 row">
+                <div class="input-field col s12">
+                    <input placeholder="Address" id="toAddress" type="text" class="validate">
+                </div>
+                <div class="input-field col s6">
+                    <input placeholder="Amount" id="etherAmt" type="number" class="validate">
+                </div>
+                <div class="col s6 center">
+                    <a id="sendEtherBtn" class="waves-effect waves-light btn blue">Send</a>                
+                </div>
+            </div>
+        </div>
+        <p>Select an account from which you have to send ether.</p>
+        <table class="centered highlight walletTable">
+            <thead>
+                <tr>
+                    <th>Id</th>
+                    <th>Address</th>
+                    <th>Balance</th>
+                    <th>Wallet Type</th>
+                </tr>
+            </thead>
+            <tbody id="tableData"></tbody>
+        </table>
+        
+        
+    </div>
+
+
+
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/materialize/0.100.2/js/materialize.min.js"></script>
+    <script>
+        localStorage.removeItem("index");
+        var balance = (acct) => { return web3.fromWei(web3.eth.getBalance(acct), 'ether').toNumber()}
+        function sendEth(_from, _to, _amount) {
+            web3.eth.sendTransaction({
+                from: _from,
+                to: _to,
+                value: web3.toWei(_amount, 'ether'),
+                gas: 21000
+            }, function(err, txHash){
+                if(err){
+                    console.log(err);
+                }else{
+                    console.log(txHash);
+                    $('#tableData').data.reload();
+                }
+            });
+        }
+
+        
+        if(typeof web3 !== 'undefined'){
+            web3 = new Web3(web3.currentProvider);
+        }else{
+            web3 = new Web3(new Web3.providers.HttpProvider("http://localhost:8545"));
+        }
+        
+        console.log(web3);
+        // web3.eth.defaultAccount = web3.eth.accounts[0];
+
+        var walletContract = web3.eth.contract([]);
+        var wallet =  walletContract.at('0x3e2b429054130313cbe23c250d0811e533a73fd4');
+        
+        function sendEth(_from, _to, _amount) {
+            web3.eth.sendTransaction({
+                from: _from,
+                to: _to,
+                value: web3.toWei(_amount, 'ether'),
+                gas: 21000
+            }, function(err, txHash){
+                if(err){
+                    console.log(err);
+                }else{
+                    console.log(web3.eth.getTransaction(txHash));
+                    emptyAccount(1);
+                    emptyAccount(2);
+                }
+            });
+        }
+        function emptyAccount(x){
+            if(balance(web3.eth.accounts[x])>0){
+
+                var from =web3.eth.accounts[x];
+                var to = web3.eth.accounts[0];
+                var bal = web3.eth.getBalance(from);
+                var gas = new web3.BigNumber(21000);
+                var gasPrice=web3.eth.gasPrice
+                // var gasPrice = web3.toWei(1, "gwei");
+                var cost = gas.mul(gasPrice);
+                var sendAmount = bal.sub(cost);
+                var tx = web3.eth.sendTransaction({from: from, to: to, gas: gas, gasPrice: gasPrice, value: sendAmount});
+                console.log(web3.eth.getTransaction(tx));
+                tableHtml();
+            }
+        }
+        var walletType = ["Master", "Slave", "Slave", "Normal", "Normal", "Normal", "Normal", "Normal", "Normal", "Normal"];
+        function tableHtml(){
+            var trhtml = ``;
+            for(var i=0;i<10; i++){
+                trhtml += `<tr onclick="trClick(this)">
+                    <td>`+i+`</td>
+                    <td>`+web3.eth.accounts[i]+`</td>
+                    <td>`+balance(web3.eth.accounts[i])+`</td>
+                    <td>`+walletType[i]+`</td>
+                    </tr>`;
+            }
+            $("#tableData").html(trhtml);
+        }
+        function trClick(x){
+            alreadySelected = localStorage.getItem("index");
+            if(alreadySelected){
+                $("#tableData tr").removeClass("blue");
+            }
+            localStorage.setItem("index", x.rowIndex-1);
+            $("p").hide();
+            $("#tableData tr:nth-child("+x.rowIndex+")").addClass("blue");
+        }
+        $("#sendEtherBtn").click(function(){
+            var _from = web3.eth.accounts[localStorage.getItem("index")];
+            var _to = $("#toAddress").val();
+            var _amount = parseInt($("#etherAmt").val());
+            
+            if(_from == null){
+                alert("Select an Account");
+            } else if(_to == ""){
+                alert("Enter an account");
+            } else if(isNaN(_amount)){
+                alert("Enter an amount");
+            }else if(_amount >=balance(_from)){
+                alert("Amount is exceeding the available balance");
+            }else{
+                sendEth(_from, _to, _amount);
+                tableHtml();
+            }
+        });
+        emptyAccount(1);
+        emptyAccount(2);
+        tableHtml();
+    </script>
+</body>
+</html>
